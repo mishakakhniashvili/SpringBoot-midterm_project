@@ -13,6 +13,7 @@ public interface CarRepository extends JpaRepository<Car, Long> {
     boolean existsByDealershipId(Long id);
     boolean existsByFeaturesId(Long id);
 
+    @EntityGraph(attributePaths = {"manufacturer", "dealership"})
     @Query("""
         select c from Car c where
         (:keyword = '' or lower(c.model) like lower(concat('%', :keyword, '%'))

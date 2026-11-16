@@ -60,9 +60,13 @@ Spring components use role annotations and constructor injection. Entities use `
 - A **Dealership** has many cars; each car has one dealership (`@OneToMany` / `@ManyToOne`).
 - A **Car** has one or more features; each **Feature** can belong to many cars (`@ManyToMany`, `car_features` join table).
 - Cars have a unique 17-character VIN, model, model year, positive price, optional description, and optional stored photo filename.
-- Manufacturer, feature, and dealership names must be unique ignoring case. Dealerships require a valid email.
+- Manufacturer, feature, and dealership names must be unique ignoring case. H2 generates a separate `normalized_name` column using `lower(trim(name))` with a database unique constraint, while `name` retains its display casing. This protects concurrent inserts and updates, including direct SQL writes. Dealerships require a valid email.
 
-Deleting an assigned manufacturer, feature, or dealership returns 409. Delete or reassign its cars first. Deleting a car removes its join-table entries and photo while preserving catalog records. New image files are removed on database rollback; old photos are removed after a successful replacement or car deletion.
+Deleting an assigned manufacturer, feature, or dealership returns 409. Delete or reassign its cars first. Deleting a car removes its join-table entries and photo while preserving catalog records. New image files are removed on database rollback; old photos are removed after a successful replacement or car deletion. Dedicated tests force a database constraint failure after valid images have been written and verify both creation and replacement rollback.
+
+The normalized-name generated-column expression is specific to the chosen H2 database. With `ddl-auto=update`, H2 computes keys for existing rows when the column is added. If existing records have conflicting normalized names, merge or rename them before upgrading; schema errors stop startup instead of silently leaving the constraint unenforced. Porting to a different database requires adapting this column definition.
+
+Car list queries fetch only the to-one manufacturer/dealership relationships with the paginated results. Features are batch-loaded in groups of 100 (the maximum page size). A regression test verifies at most three SQL statements for a full page: results, count, and features. Collection fetch joins are not used for paginated queries.
 
 ## API
 

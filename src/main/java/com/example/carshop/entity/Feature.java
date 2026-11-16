@@ -6,6 +6,11 @@ public class Feature {
     private Long id;
     @Column(nullable = false, unique = true, length = 80)
     private String name;
+    // H2 computes this key for every insert/update, including concurrent SQL writes.
+    @Column(name = "normalized_name", nullable = false, unique = true,
+            insertable = false, updatable = false,
+            columnDefinition = "varchar(240) generated always as (lower(trim(name)))")
+    private String normalizedName;
     @Column(length = 500)
     private String description;
     public Long getId() { return id; }

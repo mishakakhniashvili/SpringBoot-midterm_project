@@ -20,6 +20,7 @@ public class Car {
     private Manufacturer manufacturer;
     @ManyToOne(fetch = FetchType.LAZY, optional = false) @JoinColumn(name = "dealership_id", nullable = false)
     private Dealership dealership;
+    @org.hibernate.annotations.BatchSize(size = 100)
     @ManyToMany
     @JoinTable(name = "car_features", joinColumns = @JoinColumn(name = "car_id"), inverseJoinColumns = @JoinColumn(name = "feature_id"))
     private java.util.Set<Feature> features = new java.util.HashSet<>();

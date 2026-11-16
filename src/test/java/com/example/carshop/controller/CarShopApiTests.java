@@ -1,6 +1,20 @@
 package com.example.carshop.controller;
 
 import com.example.carshop.repository.*;
+import com.example.carshop.dto.CarRequest;
+import com.example.carshop.entity.*;
+import com.example.carshop.service.CarService;
+import org.springframework.jdbc.core.JdbcTemplate;
+import org.springframework.dao.DataIntegrityViolationException;
+import org.springframework.transaction.PlatformTransactionManager;
+import org.springframework.transaction.support.TransactionTemplate;
+import jakarta.persistence.EntityManagerFactory;
+import org.hibernate.SessionFactory;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Sort;
+import java.math.BigDecimal;
+import java.util.*;
+import java.util.concurrent.*;
 import org.junit.jupiter.api.*;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.boot.webmvc.test.autoconfigure.AutoConfigureMockMvc;
@@ -17,7 +31,10 @@ import static org.springframework.test.web.servlet.request.MockMvcRequestBuilder
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.*;
 import static org.junit.jupiter.api.Assertions.*;
 
-@SpringBootTest
+@SpringBootTest(properties = {
+    "spring.jpa.properties.hibernate.generate_statistics=true",
+    "spring.jpa.properties.hibernate.query.fail_on_pagination_over_collection_fetch=true"
+})
 @AutoConfigureMockMvc
 @TestConstructor(autowireMode=TestConstructor.AutowireMode.ALL)
 class CarShopApiTests {
@@ -34,9 +51,16 @@ class CarShopApiTests {
     private final ManufacturerRepository manufacturers;
     private final DealershipRepository dealerships;
     private final FeatureRepository features;
+    private final CarService carService;
+    private final TransactionTemplate transactions;
+    private final JdbcTemplate jdbc;
+    private final EntityManagerFactory entityManagerFactory;
     long manufacturer, dealership, feature;
     CarShopApiTests(MockMvc mvc, CarRepository cars, ManufacturerRepository manufacturers,
-                    DealershipRepository dealerships, FeatureRepository features) {
+                    DealershipRepository dealerships, FeatureRepository features, CarService carService,
+                    PlatformTransactionManager transactionManager, JdbcTemplate jdbc, EntityManagerFactory entityManagerFactory) {
+        this.carService=carService; this.transactions=new TransactionTemplate(transactionManager);
+        this.jdbc=jdbc; this.entityManagerFactory=entityManagerFactory;
         this.mvc=mvc; this.cars=cars; this.manufacturers=manufacturers; this.dealerships=dealerships; this.features=features;
     }
     @BeforeEach
@@ -139,6 +163,104 @@ class CarShopApiTests {
             String collection=path.substring(0,path.indexOf('/'));
             mvc.perform(get("/api/"+collection).param("name","updated").param("size","1").param("sort","name,desc"))
                 .andExpect(status().isOk()).andExpect(jsonPath("$.totalElements").value(1));
+        }
+    }
+    @Test void databaseRejectsConcurrentCaseVariantsAndConflictingUpdates() throws Exception {
+        ExecutorService executor = Executors.newFixedThreadPool(2);
+        try {
+            for (String table : List.of("manufacturer", "feature", "dealership")) {
+                CountDownLatch start = new CountDownLatch(1);
+                List<Future<Boolean>> outcomes = new ArrayList<>();
+                for (String name : List.of("RaceMaker", "RACEMAKER")) {
+                    outcomes.add(executor.submit(() -> {
+                        assertTrue(start.await(5, TimeUnit.SECONDS));
+                        try {
+                            String sql = table.equals("dealership")
+                                ? "insert into dealership(name, email) values (?, 'race@example.com')"
+                                : "insert into " + table + "(name) values (?)";
+                            jdbc.update(sql, name);
+                            return true;
+                        } catch (DataIntegrityViolationException expected) { return false; }
+                    }));
+                }
+                start.countDown();
+                int successes = 0;
+                for (var outcome : outcomes) if (outcome.get(10, TimeUnit.SECONDS)) successes++;
+                assertEquals(1, successes, table + " must accept exactly one concurrent insert");
+                assertEquals(1, jdbc.queryForObject("select count(*) from " + table + " where normalized_name='racemaker'", Integer.class));
+                String display = jdbc.queryForObject("select name from " + table + " where normalized_name='racemaker'", String.class);
+                assertTrue(Set.of("RaceMaker", "RACEMAKER").contains(display));
+                long id = switch (table) { case "manufacturer" -> manufacturer; case "feature" -> feature; default -> dealership; };
+                assertThrows(DataIntegrityViolationException.class,
+                    () -> jdbc.update("update " + table + " set name=' racemaker ' where id=?", id));
+            }
+        } finally { executor.shutdownNow(); }
+    }
+
+    private CarRequest validRequest() {
+        CarRequest request = new CarRequest();
+        request.setModel("Camry"); request.setVin("1HGCM82633A004352"); request.setModelYear(2024);
+        request.setPrice(new BigDecimal("24000.00")); request.setManufacturerId(manufacturer);
+        request.setDealershipId(dealership); request.setFeatureIds(Set.of(feature));
+        return request;
+    }
+    private void forceDatabaseFailure() {
+        // This bypasses application prechecks and fails in the database after the photo is stored.
+        jdbc.update("insert into feature(name) values ('HEATED SEATS')");
+    }
+    private List<Path> storedFiles() throws IOException {
+        try (var files = Files.list(UPLOADS)) { return files.sorted().toList(); }
+    }
+    @Test void failedCreationRollsBackDatabaseAndRemovesValidStoredPhoto() throws Exception {
+        byte[] image = png();
+        assertThrows(DataIntegrityViolationException.class, () -> transactions.executeWithoutResult(status -> {
+            var created = carService.create(validRequest(), new MockMultipartFile("photo", "car.png", "image/png", image));
+            assertTrue(Files.isRegularFile(UPLOADS.resolve(created.photoPath())));
+            assertEquals(1, cars.count());
+            forceDatabaseFailure();
+        }));
+        assertEquals(0, cars.count());
+        assertTrue(storedFiles().isEmpty());
+    }
+    @Test void rolledBackReplacementPreservesOriginalPhotoAndRemovesReplacement() throws Exception {
+        byte[] original = png();
+        var created = carService.create(validRequest(), new MockMultipartFile("photo", "old.png", "image/png", original));
+        Path oldPath = UPLOADS.resolve(created.photoPath());
+        assertThrows(DataIntegrityViolationException.class, () -> transactions.executeWithoutResult(status -> {
+            var updated = carService.updatePhoto(created.id(), new MockMultipartFile("photo", "new.png", "image/png", original));
+            assertNotEquals(created.photoPath(), updated.photoPath());
+            assertTrue(Files.isRegularFile(UPLOADS.resolve(updated.photoPath())));
+            assertTrue(Files.isRegularFile(oldPath));
+            forceDatabaseFailure();
+        }));
+        assertEquals(created.photoPath(), carService.get(created.id()).photoPath());
+        assertEquals(List.of(oldPath), storedFiles());
+        assertArrayEquals(original, Files.readAllBytes(oldPath));
+    }
+    @Test void paginatedListsUseBoundedQueriesWithDistinctRelationships() {
+        // Distinct related records prevent first-level caching from hiding an N+1 regression.
+        for (int i = 0; i < 21; i++) {
+            Manufacturer maker = new Manufacturer(); maker.setName("Maker " + i); manufacturers.saveAndFlush(maker);
+            Dealership dealer = new Dealership(); dealer.setName("Dealer " + i); dealer.setEmail("dealer" + i + "@example.com"); dealerships.saveAndFlush(dealer);
+            Feature extra = new Feature(); extra.setName("Feature " + i); features.saveAndFlush(extra);
+            CarRequest request = validRequest(); request.setVin("1HGCM82633A" + String.format("%06d", i));
+            request.setManufacturerId(maker.getId()); request.setDealershipId(dealer.getId());
+            request.setFeatureIds(Set.of(feature, extra.getId())); carService.create(request, null);
+        }
+        var statistics = entityManagerFactory.unwrap(SessionFactory.class).getStatistics();
+        Set<Long> seen = new HashSet<>();
+        for (int page = 0; page < 2; page++) {
+            statistics.clear();
+            var result = carService.list("", null, null, feature, null, null, PageRequest.of(page, 10, Sort.by("id")));
+            assertEquals(21, result.getTotalElements()); assertEquals(3, result.getTotalPages());
+            assertEquals(10, result.getNumberOfElements());
+            for (var car : result) {
+                assertTrue(seen.add(car.id()), "Pages must not overlap");
+                assertNotNull(car.manufacturer().name()); assertNotNull(car.dealership().email());
+                assertEquals(2, car.features().size());
+            }
+            assertTrue(statistics.getPrepareStatementCount() <= 3,
+                "Expected page, count, and batched features only; got " + statistics.getPrepareStatementCount());
         }
     }
     @AfterAll static void cleanupFiles() throws Exception {
