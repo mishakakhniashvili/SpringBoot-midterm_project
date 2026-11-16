@@ -1,4 +1,5 @@
 package com.example.carshop.controller;
+import lombok.RequiredArgsConstructor;
 import com.example.carshop.dto.*;
 import com.example.carshop.service.ManufacturerService;
 import jakarta.validation.Valid;
@@ -8,9 +9,9 @@ import org.springframework.http.*;
 import java.net.URI;
 @RestController
 @RequestMapping("/api/manufacturers")
+@RequiredArgsConstructor
 public class ManufacturerController {
     private final ManufacturerService service;
-    public ManufacturerController(ManufacturerService service) { this.service = service; }
     @GetMapping
     public Page<ReferenceResponse> list(@RequestParam(defaultValue="") String name, Pageable pageable) {
         return service.list(name, PageRequests.checked(pageable, "id", "name"));

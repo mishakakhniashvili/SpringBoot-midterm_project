@@ -1,4 +1,5 @@
 package com.example.carshop.service;
+import lombok.RequiredArgsConstructor;
 import com.example.carshop.dto.*;
 import com.example.carshop.entity.Manufacturer;
 import com.example.carshop.repository.*;
@@ -8,10 +9,10 @@ import org.springframework.transaction.annotation.Transactional;
 import org.springframework.data.domain.*;
 @Service
 @Transactional(readOnly = true)
+@RequiredArgsConstructor
 public class ManufacturerService {
     private final ManufacturerRepository repository;
     private final CarRepository cars;
-    public ManufacturerService(ManufacturerRepository repository, CarRepository cars) { this.repository = repository; this.cars = cars; }
     public Page<ReferenceResponse> list(String name, Pageable pageable) { return repository.findByNameContainingIgnoreCase(name, pageable).map(Responses::of); }
     public ReferenceResponse get(Long id) { return Responses.of(require(id)); }
     @Transactional

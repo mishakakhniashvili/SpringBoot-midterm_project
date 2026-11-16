@@ -1,5 +1,11 @@
 package com.example.carshop.dto;
+import lombok.Getter;
+import lombok.Setter;
+import lombok.NoArgsConstructor;
 import jakarta.validation.constraints.*;
+@Getter
+@Setter
+@NoArgsConstructor
 public class CarRequest {
     @NotBlank @Size(max=100)
     private String model;
@@ -17,20 +23,4 @@ public class CarRequest {
     private Long dealershipId;
     @NotNull @Size(min=1, max=30)
     private java.util.Set<@NotNull @Positive Long> featureIds;
-    public String getModel() { return model; }
-    public void setModel(String model) { this.model = model; }
-    public String getVin() { return vin; }
-    public void setVin(String vin) { this.vin = vin; }
-    public Integer getModelYear() { return modelYear; }
-    public void setModelYear(Integer modelYear) { this.modelYear = modelYear; }
-    public java.math.BigDecimal getPrice() { return price; }
-    public void setPrice(java.math.BigDecimal price) { this.price = price; }
-    public String getDescription() { return description; }
-    public void setDescription(String description) { this.description = description; }
-    public Long getManufacturerId() { return manufacturerId; }
-    public void setManufacturerId(Long manufacturerId) { this.manufacturerId = manufacturerId; }
-    public Long getDealershipId() { return dealershipId; }
-    public void setDealershipId(Long dealershipId) { this.dealershipId = dealershipId; }
-    public java.util.Set<@NotNull @Positive Long> getFeatureIds() { return featureIds; }
-    public void setFeatureIds(java.util.Set<@NotNull @Positive Long> featureIds) { this.featureIds = featureIds; }
 }

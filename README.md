@@ -52,7 +52,9 @@ src/test/java/com/example/carshop/
     controller/CarShopApiTests.java
 ```
 
-Spring components use role annotations and constructor injection. Entities use `@Entity`; DTOs and ordinary helper classes are not Spring beans.
+Spring components use role annotations and constructor injection. Controllers and services use Lombok `@RequiredArgsConstructor` for final dependencies. Entities and the mutable car request use `@Getter`, `@Setter`, and `@NoArgsConstructor`; records already provide their own accessors. Entity relationships are excluded from generated equality, hashing, and string methods by using only these focused annotations. Database-generated normalized-name fields do not expose accessors. Entities use `@Entity`; DTOs and ordinary helper classes are not Spring beans.
+
+Lombok is a compile-time dependency managed by Spring Boot. Maven explicitly configures its annotation processor and excludes it from the executable JAR. After pulling this change in IntelliJ, reload the Maven project. Annotation processing should be enabled under Settings ? Build, Execution, Deployment ? Compiler ? Annotation Processors. Custom constructors that normalize paths or create the upload directory remain explicit.
 
 ## Data model
 

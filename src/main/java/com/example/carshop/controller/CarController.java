@@ -1,4 +1,5 @@
 package com.example.carshop.controller;
+import lombok.RequiredArgsConstructor;
 import com.example.carshop.dto.*;
 import com.example.carshop.service.CarService;
 import jakarta.validation.Valid;
@@ -11,9 +12,9 @@ import java.net.URI;
 import java.math.BigDecimal;
 @RestController
 @RequestMapping("/api/cars")
+@RequiredArgsConstructor
 public class CarController {
     private final CarService service;
-    public CarController(CarService service) { this.service = service; }
     @GetMapping
     public Page<CarResponse> list(@RequestParam(defaultValue="") String keyword,
         @RequestParam(required=false) Long manufacturerId, @RequestParam(required=false) Long dealershipId,

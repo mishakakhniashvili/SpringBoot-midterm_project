@@ -1,4 +1,5 @@
 package com.example.carshop.service;
+import lombok.RequiredArgsConstructor;
 import com.example.carshop.dto.*;
 import com.example.carshop.entity.*;
 import com.example.carshop.repository.*;
@@ -12,17 +13,13 @@ import java.math.BigDecimal;
 import java.util.*;
 @Service
 @Transactional(readOnly = true)
+@RequiredArgsConstructor
 public class CarService {
     private final CarRepository cars;
     private final ManufacturerRepository manufacturers;
     private final DealershipRepository dealerships;
     private final FeatureRepository features;
     private final PhotoStorageService photos;
-    public CarService(CarRepository cars, ManufacturerRepository manufacturers, DealershipRepository dealerships,
-                      FeatureRepository features, PhotoStorageService photos) {
-        this.cars = cars; this.manufacturers = manufacturers; this.dealerships = dealerships;
-        this.features = features; this.photos = photos;
-    }
     public Page<CarResponse> list(String keyword, Long manufacturerId, Long dealershipId, Long featureId,
                                   BigDecimal minPrice, BigDecimal maxPrice, Pageable pageable) {
         if ((minPrice != null && minPrice.signum() < 0) || (maxPrice != null && maxPrice.signum() < 0)

@@ -1,6 +1,12 @@
 package com.example.carshop.entity;
+import lombok.Getter;
+import lombok.Setter;
+import lombok.NoArgsConstructor;
 import jakarta.persistence.*;
 @Entity
+@Getter
+@Setter
+@NoArgsConstructor
 public class Car {
     @Id @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
@@ -24,24 +30,4 @@ public class Car {
     @ManyToMany
     @JoinTable(name = "car_features", joinColumns = @JoinColumn(name = "car_id"), inverseJoinColumns = @JoinColumn(name = "feature_id"))
     private java.util.Set<Feature> features = new java.util.HashSet<>();
-    public Long getId() { return id; }
-    public void setId(Long id) { this.id = id; }
-    public String getModel() { return model; }
-    public void setModel(String model) { this.model = model; }
-    public String getVin() { return vin; }
-    public void setVin(String vin) { this.vin = vin; }
-    public Integer getModelYear() { return modelYear; }
-    public void setModelYear(Integer modelYear) { this.modelYear = modelYear; }
-    public java.math.BigDecimal getPrice() { return price; }
-    public void setPrice(java.math.BigDecimal price) { this.price = price; }
-    public String getDescription() { return description; }
-    public void setDescription(String description) { this.description = description; }
-    public String getPhotoPath() { return photoPath; }
-    public void setPhotoPath(String photoPath) { this.photoPath = photoPath; }
-    public Manufacturer getManufacturer() { return manufacturer; }
-    public void setManufacturer(Manufacturer manufacturer) { this.manufacturer = manufacturer; }
-    public Dealership getDealership() { return dealership; }
-    public void setDealership(Dealership dealership) { this.dealership = dealership; }
-    public java.util.Set<Feature> getFeatures() { return features; }
-    public void setFeatures(java.util.Set<Feature> features) { this.features = features; }
 }
