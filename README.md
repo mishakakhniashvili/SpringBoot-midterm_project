@@ -113,43 +113,4 @@ curl.exe --fail-with-body "$base/cars/$($car.id)/photo" --output downloaded-car.
 Invoke-RestMethod "$base/cars/$($car.id)" -Method Delete
 ```
 
-Omit `photo` to create a car without an image. The browser demo offers a file picker.
 
-## Requirements checklist
-
-| Requirement | Implementation |
-| --- | --- |
-| Layered architecture and stereotypes | Separate controller, service, repository, entity, DTO, configuration, exception packages |
-| Constructor injection | Constructor dependencies throughout; no field injection |
-| Minimum three entities | Four: Car, Manufacturer, Feature, Dealership |
-| Two relationship types | Many-to-one/one-to-many and many-to-many |
-| Spring Data interfaces | Four `JpaRepository` interfaces |
-| Two method-name queries | `findByVinIgnoreCase`, `findByNameContainingIgnoreCase`, `findByNameIgnoreCase`, relationship existence checks |
-| Two custom queries | `CarRepository.search` (combined filters) and `findDetailedById` (fetch joins), using `@Query` |
-| Transactions | Modifying business methods use `@Transactional`; read-only transactions for reads |
-| Methods and request binding | GET/POST/PUT/DELETE; `@PathVariable`, `@RequestParam`, `@RequestBody`, `@ModelAttribute` |
-| Validation | `@Valid`, `@NotBlank`, `@NotNull`, `@Size`, `@Min`, `@Max`, `@Email`, `@Pattern`, `@Positive`, `@DecimalMin`, `@Digits` |
-| File upload | `MultipartFile`, HTML `enctype="multipart/form-data"`, local images, persisted `photoPath` |
-| Pagination and sorting | Spring Data `Pageable`, `PageRequest`, `Sort` on every list |
-| Two modest additions | Fourth entity (Dealership) and a usable HTML demo |
-
-## Push to GitHub
-
-The requested submission destination is **https://github.com/mishakakhniashvili/SpringBoot-midterm_project**. It differs from the screenshot/reference repository (`Spring-Boot_midterm_project`). These commands use the requested destination.
-
-This folder initially inherited Git from its parent home directory. Initialize Git **inside this project** before staging so unrelated home files are excluded. Nothing has been committed or pushed automatically.
-
-```powershell
-Set-Location C:\Users\misha\IdeaProjects\carShop
-git init -b main
-# Confirm this prints C:/Users/misha/IdeaProjects/carShop:
-git rev-parse --show-toplevel
-git add .
-git status --short
-# Confirm Java sources are included and data/uploads/target are absent.
-git commit -m "Build car shop backend with JPA, validation, pagination and photo uploads"
-git remote add origin https://github.com/mishakakhniashvili/SpringBoot-midterm_project.git
-git push -u origin main
-```
-
-GitHub may prompt you to sign in. If `origin` already exists, replace the add command with `git remote set-url origin https://github.com/mishakakhniashvili/SpringBoot-midterm_project.git`. If existing remote commits reject the push, preserve them with `git pull --no-rebase origin main --allow-unrelated-histories`, resolve conflicts, commit, and push again. Do not force-push over existing work.
